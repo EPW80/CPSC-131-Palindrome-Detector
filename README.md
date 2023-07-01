@@ -26,6 +26,10 @@ A palindrome is a word, phrase, number, or other sequences of characters that re
 
 - sandbox.cpp (optional, for custom debugging/development)
 
+## Demo
+
+![](./demo.gif)
+
 # Contributor
 
 Erik Williams
