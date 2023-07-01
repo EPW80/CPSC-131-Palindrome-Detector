@@ -4,21 +4,24 @@
  */
 
 //
+#include <algorithm>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <vector>
 
 
 //
-#include "BookStore.hpp"
-#include "DoublyLinkedList.hpp"
+#include "MyStack.hpp"
+#include "MyQueue.hpp"
+#include "MyDetector.hpp"
 #include "puhp-tests/PuhPTests.hpp"
 
 
 //
 using std::cout, std::cin, std::endl;
-using std::string;
+using std::string, std::to_string;
 using std::vector;
 
 
@@ -26,30 +29,37 @@ using std::vector;
 using PuhPTests::Tests;
 using PuhPTests::Test;
 using PuhPTests::OutputCapture;
+using PuhPTests::Timer;
+using PuhPTests::Complexity;
+using PuhPTests::Random;
 
 
 //
-using CPSC131::BookStore::BookStore, CPSC131::BookStore::Book;
+using CPSC131::PalindromeDetector::MyDetector;
+using CPSC131::MyStack;
+using CPSC131::MyQueue;
 
 
 //	PROTO
-BookStore makeBookStore(bool empty = false);
-std::vector<Book> makeBooks();
-CPSC131::DoublyLinkedList::DoublyLinkedList<int> makeList();
-bool checkIntegerListsEqual(const CPSC131::DoublyLinkedList::DoublyLinkedList<int>& list1, const CPSC131::DoublyLinkedList::DoublyLinkedList<int>& list2);
+void initPalindromes();
+bool stacksAreEqual(const MyStack<int>& s1, const MyStack<int>& s2);
+bool queuesAreEqual(const MyQueue<int>& s1, const MyQueue<int>& s2);
 //
-template<class T>
-void printList(CPSC131::DoublyLinkedList::DoublyLinkedList<T>& list);
-//
-//
-void testPrinting(Tests& tests);
-void testBasicLists(Tests& tests);
-void testListAssignment(Tests& tests);
-void testListAccordion(Tests& tests);
-void testListReverse(Tests& tests);
-void testIterators(Tests& tests);
-void testStockSales(Tests& tests);
+void testStack(Tests& tests);
+void testQueue(Tests& tests);
+void testComplexities(Tests& tests);
+void testDetector(Tests& tests);
 void testMemoryLeaks(Tests& tests);
+
+
+//	Globals
+vector<string>
+	palindromes_simple,
+	palindromes_case,
+	palindromes_complex,
+	palindromes_all
+	;
+std::map<string, vector<string>> palindromes;
 
 
 //
@@ -59,15 +69,15 @@ int main()
 	Tests tests(50);
 	
 	//
+	initPalindromes();
+	
+	//
 	std::vector<std::function<void(Tests&)>> fs = {
-		testPrinting,
-		testBasicLists,
-		testListAssignment,
-		testListAccordion,
-		testListReverse,
-		testIterators,
-		testStockSales,
-		testMemoryLeaks,
+		testStack,
+		testQueue,
+		testComplexities,
+		testDetector,
+		testMemoryLeaks
 	};
 	
 	//
@@ -76,7 +86,7 @@ int main()
 	}
 	
 	//
-	tests.run();
+	tests.run(true);
 	
 	//
 	cout << "Tests complete" << endl;
@@ -84,110 +94,409 @@ int main()
 	return 0;
 }
 
-//
-BookStore makeBookStore(bool empty)
-{
-	//
-	BookStore store;
-	
-	//
-	auto books = makeBooks();
-	size_t quantity = 50;
-	for ( Book b : books ) {
-		
-		//
-		if ( !empty ) {
-			b.adjustStockAvailable(quantity);
-			quantity--;
-		}
-		
-		store.purchaseInventory(b);
-	}
-	
-	return store;
-}
 
 //
-std::vector<Book> makeBooks()
+void initPalindromes()
 {
-	//
-	std::vector<Book> v = {
-		Book("Brainwashing is a Cinch!", "James Maratta", "B001NDNB7C", 900),
-		Book("Catflexing - A Catlover's Guide to Weight Training, Aerobics, and Stretching", "Stephanie Jackson", "0898159407", 550),
-		Book("How to Enjoy Your Weeds", "Audrey Wynne Hatfield", "080693042X", 1200),
-		Book("How to Teach Quantum Physics to Your Dog", "Chad Orzel", "1416572295", 2000),
-		Book("How to Train Goldfish Using Dolphin Training Techniques", "C. Scott Johnson", "0533112923", 100)
-	};
+	//	Thank you, Grammarly: https://www.grammarly.com/blog/16-surprisingly-funny-palindromes/
 	
-	return v;
+	//
+	palindromes["simple"] = std::vector<string>({
+		"never odd or even",
+		"a nut for a jar of tuna"
+	});
+	palindromes["case"] = std::vector<string>({
+		"Taco Cat",
+		"Oozy Rat in a Sanitary Zoo"
+	});
+	palindromes["complex"] = std::vector<string> ({
+		"Was it a car or a cat I saw?",
+		"Yo, banana boy!"
+	});
 }
 
-//
-CPSC131::DoublyLinkedList::DoublyLinkedList<int> makeList()
-{
-	//
-	CPSC131::DoublyLinkedList::DoublyLinkedList<int> list;
-	
-	//
-	for ( size_t i = 0; i < 20; i++ ) {
-		int value = (i * 3) - 30;
-		list.push_back(value);
-	}
-	
-	return list;
-}
 
 //
-bool checkIntegerListsEqual(CPSC131::DoublyLinkedList::DoublyLinkedList<int>& list1, CPSC131::DoublyLinkedList::DoublyLinkedList<int>& list2)
+bool stacksAreEqual(const MyStack<int>& s1, const MyStack<int>& s2)
 {
-	//
-	if ( list1.size() != list2.size() ) {
+	//	We need to make a copy at this point, so the original stacks are unharmed
+	auto s3 = s1;
+	auto s4 = s2;
+	
+	if ( s3.size() != s4.size() ) {
 		return false;
 	}
 	
 	//
-	for ( size_t i = 0; i < list1.size(); i++ ) {
-		if ( list1.at(i) != list2.at(i) ) {
+	size_t sz = s3.size();
+	for ( size_t i = 0; i < sz; i++ ) {
+		
+		if ( s3.top() != s4.top() ) {
 			return false;
 		}
+		
+		s3.pop();
+		s4.pop();
+	}
+	
+	//
+	if ( s3.size() > 0 || s4.size() > 0 ) {
+		throw std::runtime_error("Stack has erroneous size after popping until empty.");
 	}
 	
 	return true;
 }
 
+
 //
-template <class T>
-void printList(CPSC131::DoublyLinkedList::DoublyLinkedList<T>& list)
+bool queuesAreEqual(const MyQueue<int>& q1, const MyQueue<int>& q2)
 {
-	//
-	auto node = list.head();
-	size_t index = 0;
+	//	We need to make a copy at this point, so the original queues are unharmed
+	auto q3 = q1;
+	auto q4 = q2;
+	
+	if ( q3.size() != q4.size() ) {
+		return false;
+	}
 	
 	//
-	cout << "{";
-	while (node != nullptr)
-	{
-		//
-		if ( index > 0 ) {
-			cout << ", ";
+	size_t sz = q3.size();
+	for ( size_t i = 0; i < sz; i++ ) {
+		
+		if ( q3.front() != q4.front() ) {
+			return false;
 		}
-		cout << index << ":" << node->getElement();
+		
+		q3.dequeue();
+		q4.dequeue();
+	}
+	
+	//
+	if ( q3.size() > 0 || q4.size() > 0 ) {
+		throw std::runtime_error("Queue has erroneous size after dequeuing until empty.");
+	}
+	
+	return true;
+}
+
+
+//
+void testStack(Tests& tests)
+{
+	//
+	auto t = tests.createTest("Stack");
+	
+	t->setFixedPointsPossible(14);
+	t->setNormalizedPointsPossibleTarget(5);
+	
+	//
+	{
+		MyStack<int> stack;
+		stack.push(4);
+		stack.push(5);
+		stack.push(7);
+		t->assertEqual(stack.size(), 3ULL, 1, "Stack size after basic push");
+		t->assertEqual(stack.top(), 7, 1, "Stack top() after basic push");
+		t->assertFalse(stack.empty(), 1, "Stack shouldn't be empty after basic push");
+		stack.pop();
+		t->assertEqual(stack.size(), 2ULL, 1, "Stack size after a pop");
+		t->assertEqual(stack.top(), 5, 1, "Stack top() after a pop");
+		stack.pop();
+		t->assertFalse(stack.empty(), 1, "Stack shouldn't be empty with elements remaining");
+		stack.pop();
+		t->assertTrue(stack.empty(), 1, "Stack should be empty with no elements remaining");
 		
 		//
-		node = node->getNext();
-		index++;
+		stack.push(8);
+		t->assertEqual(stack.top(), 8, 0, "Checking stack top value after a push");
+		stack.push(3);
+		t->assertEqual(stack.top(), 3, 0, "Checking stack top value after two pushes");
+		stack.push(4);
+		stack.push(6);
+		stack.push(8);
+		t->assertEqual(stack.top(), 8, 0, "Checking stack top value after five pushes");
+		stack.clear();
+		t->assertTrue(stack.empty(), 1, "Stack should be empty after call to clear()");
 	}
-	cout << "}" << endl;
+	
+	{
+		//	Make sure it works with another data type
+		MyStack<string> s;
+		s.push("One");
+		s.push("Two");
+		s.push("Three");
+		t->assertEqual(s.top(), "Three", 0, "Checking top of stack with strings");
+		s.pop();
+		s.pop();
+		t->assertEqual(s.top(), "One", 0, "Checking top of stack with strings");
+		s.pop();
+		t->assertTrue(s.empty(), 1, "Stack should be empty after clear (strings)");
+	}
+	
+	//	Check for exceptions
+	t->assertException(
+		[]()
+		{
+			//
+			MyStack<int> stack;
+			stack.pop();
+			
+		}, 1, "Attempting to pop an empty stack should throw an exception"
+	);
+	t->assertException(
+		[]()
+		{
+			//
+			MyStack<int> stack;
+			stack.top();
+			
+		}, 1, "Attempting to get the top element of an empty stack should throw an exception"
+	);
+	
+	//	Check assignment operator and copy constructor
+	t->assertNoException(
+		[t]()
+		{
+			Random r;
+			
+			MyStack<int> s1;
+			for ( int i = 0; i < 1000; i++ ) {
+				s1.push( r.get(0, 1000000) );
+			}
+			
+			MyStack<int> s2(s1);
+			t->assertTrue(stacksAreEqual(s2, s1), 1, "Checking stack copy CTOR");
+			
+			auto s3 = s1;
+			t->assertTrue(stacksAreEqual(s3, s1), 1, "Checking stack assignment operator");
+			
+		}, 1, "Stack assignment operator and copy CTOR"
+	);
 }
 
 //
-void testPrinting(Tests& tests)
+void testQueue(Tests& tests)
 {
 	//
-	auto t = tests.createTest("Printing");
+	auto t = tests.createTest("Queue");
+	
+	t->setFixedPointsPossible(14);
+	t->setNormalizedPointsPossibleTarget(5);
 	
 	//
-	t->setFixedPointsPossible(2);
+	{
+		MyQueue<int> q;
+		q.enqueue(4);
+		q.enqueue(5);
+		q.enqueue(7);
+		t->assertEqual(q.size(), 3ULL, 1, "Queue size after basic enqueue");
+		t->assertEqual(q.front(), 4, 1, "Queue front() after basic enqueue");
+		t->assertFalse(q.empty(), 1, "Queue shouldn't be empty after basic enqueue");
+		q.dequeue();
+		t->assertEqual(q.size(), 2ULL, 1, "Queue size after a dequeue");
+		t->assertEqual(q.front(), 5, 1, "Queue front() after a dequeue");
+		q.dequeue();
+		t->assertFalse(q.empty(), 1, "Queue shouldn't be empty with elements remaining");
+		q.dequeue();
+		t->assertTrue(q.empty(), 1, "Queue should be empty with no elements remaining");
+		
+		//
+		q.enqueue(8);
+		t->assertEqual(q.front(), 8, 0, "Checking Queue front value after one enqueue");
+		q.enqueue(3);
+		t->assertEqual(q.front(), 8, 0, "Checking Queue front value after two enqueues");
+		q.enqueue(4);
+		q.enqueue(6);
+		q.enqueue(8);
+		t->assertEqual(q.front(), 8, 0, "Checking Queue front value after five enqueues");
+		q.dequeue();
+		t->assertEqual(q.front(), 3, 0, "Checking Queue front value after five enqueues and a dequeue");
+		q.clear();
+		t->assertTrue(q.empty(), 1, "Queue should be empty after call to clear()");
+	}
+	
+	{
+		//	Make sure it works with another data type
+		MyQueue<string> q;
+		q.enqueue("One");
+		q.enqueue("Two");
+		q.enqueue("Three");
+		t->assertEqual(q.front(), "One", 0, "Checking top of queue with strings");
+		q.dequeue();
+		q.dequeue();
+		t->assertEqual(q.front(), "Three", 0, "Checking top of queue with strings");
+		q.dequeue();
+		t->assertTrue(q.empty(), 1, "Queue should be empty after dequeuing last item (strings)");
+	}
+	
+	//	Check for exceptions
+	t->assertException(
+		[]()
+		{
+			//
+			MyQueue<int> q;
+			q.dequeue();
+			
+		}, 1, "Attempting to dequeue an empty queue should throw an exception"
+	);
+	t->assertException(
+		[]()
+		{
+			//
+			MyQueue<int> q;
+			q.front();
+			
+		}, 1, "Attempting to get the front element of an empty queue should throw an exception"
+	);
+	
+	{
+		//	Add a ton of items
+		size_t count = 100000;
+		MyQueue<int> q;
+		for ( size_t i = 0; i < count; i++ ) {
+			q.enqueue((i * 4) - 10000);
+		}
+		t->assertEqual(q.size(), count, 0, "Check queue size after lots of enqueuing");
+	}
+	
+	
+	//	Check assignment operator and copy constructor
+	t->assertNoException(
+		[t]()
+		{
+			Random r;
+			
+			MyQueue<int> q1;
+			for ( int i = 0; i < 1000; i++ ) {
+				q1.enqueue( r.get(0, 1000000) );
+			}
+			
+			MyQueue<int> q2(q1);
+			t->assertTrue(queuesAreEqual(q2, q1), 1, "Checking queue copy CTOR");
+			
+			auto q3 = q1;
+			t->assertTrue(queuesAreEqual(q3, q1), 1, "Checking queue assignment operator");
+			
+			
+		}, 1, "Queue assignment operator and copy CTOR"
+	);
+}
+
+
+//
+void testComplexities(Tests& tests)
+{
+	//
+	auto t = tests.createTest("Complexity");
+	
+	t->setFixedPointsPossible(8);
+	t->setNormalizedPointsPossibleTarget(5);
+	
+	//
+	Complexity complex;
+	//complex.verbose(true);
+	Timer timer1, timer2;
+	size_t size1 = 100, size2 = 10000, addCount = 10000000;
+	
+	{
+		//	Prep to measure stack complexities
+		MyStack<int> stack1, stack2;
+		
+		//	Setup differently-sized stacks
+		for ( size_t i = 0; i < size1; i++ ) {
+			stack1.push((i * 4) - 10000);
+		}
+		for ( size_t i = 0; i < size2; i++ ) {
+			stack2.push((i * 4) - 10000);
+		}
+		t->assertEqual(stack1.size(), size1, 0, "Check stack size after " + to_string(size1) + " pushes");
+		t->assertEqual(stack2.size(), size2, 0, "Check stack size after " + to_string(size2) + " pushes");
+		
+		//	Measure complexity of a push
+		timer1.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			stack1.push(5);
+		}
+		timer1.stop();
+		//
+		timer2.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			stack2.push(5);
+		}
+		timer2.stop();
+		//
+		t->assertTrue(complex.checkConstantTime(timer1, size1, timer2, size2), 2, "Stack push should be O(1)");
+		
+		//	Measure complexity of a pop
+		timer1.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			stack1.pop();
+		}
+		timer1.stop();
+		//
+		timer2.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			stack2.pop();
+		}
+		timer2.stop();
+		//
+		t->assertTrue(complex.checkConstantTime(timer1, size1, timer2, size2), 2, "Stack pop should be O(1)");
+	}
+	
+	{
+		//	Prep to measure queue complexities
+		MyQueue<int> q1, q2;
+		
+		//	Setup differently-sized queues
+		for ( size_t i = 0; i < size1; i++ ) {
+			q1.enqueue((i * 4) - 10000);
+		}
+		for ( size_t i = 0; i < size2; i++ ) {
+			q2.enqueue((i * 4) - 10000);
+		}
+		t->assertEqual(q1.size(), size1, 0, "Check queue size after " + to_string(size1) + " enqueues");
+		t->assertEqual(q2.size(), size2, 0, "Check queue size after " + to_string(size2) + " enqueues");
+		
+		//	Measure complexity of an enqueue
+		timer1.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			q1.enqueue(5);
+		}
+		timer1.stop();
+		//
+		timer2.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			q1.enqueue(5);
+		}
+		timer2.stop();
+		//
+		t->assertTrue(complex.checkConstantTime(timer1, size1, timer2, size2), 2, "Queue enqueue should be O(1)");
+		
+		//	Measure complexity of dequeue
+		timer1.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			q1.dequeue();
+		}
+		timer1.stop();
+		//
+		timer2.start();
+		for ( size_t i = 0; i < addCount; i++ ) {
+			q1.dequeue();
+		}
+		timer2.stop();
+		//
+		t->assertTrue(complex.checkConstantTime(timer1, size1, timer2, size2), 2, "Queue dequeue should be O(1)");
+	}
+}
+
+
+//
+void testDetector(Tests& tests)
+{
+	//
+	auto t = tests.createTest("Detector");
+	
+	t->setFixedPointsPossible(11);
 	t->setNormalizedPointsPossibleTarget(5);
 	
 	//
@@ -195,467 +504,64 @@ void testPrinting(Tests& tests)
 		[t]()
 		{
 			//
-			auto store = makeBookStore();
+			MyDetector d;
+			Random r;
 			
 			//
-			OutputCapture cap;
-			store.printInventory();
-			cap.endCapture();
+			std::string ruiner = r.getString(4);
+			t->log("Using ruiner string: " + ruiner);
 			
-			//
-			string expected = "*** Book Store Inventory ***\n"
-				"\"Brainwashing is a Cinch!\", by James Maratta [B001NDNB7C] (50 in stock)\n"
-				"\"Catflexing - A Catlover's Guide to Weight Training, Aerobics, and Stretching\", by Stephanie Jackson [0898159407] (49 in stock)\n"
-				"\"How to Enjoy Your Weeds\", by Audrey Wynne Hatfield [080693042X] (48 in stock)\n"
-				"\"How to Teach Quantum Physics to Your Dog\", by Chad Orzel [1416572295] (47 in stock)\n"
-				"\"How to Train Goldfish Using Dolphin Training Techniques\", by C. Scott Johnson [0533112923] (46 in stock)\n"
-				;
-			
-			//
-			t->assertEqual(cap.getStdout(), expected, 1, "Basic store printout");
-			
-		}, 1, "Print tests"
-	);
-}
-
-//
-void testBasicLists(Tests& tests)
-{
-	//
-	auto t = tests.createTest("List basics");
-	
-	//
-	t->setFixedPointsPossible(15);
-	t->setNormalizedPointsPossibleTarget(10);
-	
-	//
-	t->assertNoException(
-		[t]()
-		{
-			//
-			{
-				//
-				auto list = makeList();
+			//	Test each type of palindrome, one by one
+			for ( auto palindrome_type : std::vector<std::string>({"simple", "case", "complex"}) ) {
 				
-				//	Check some values
-				t->assertEqual(
-					list.at(0), static_cast<int>(-30),
-					1, "Checking random access"
-				);
-				t->assertEqual(
-					list.at(3), static_cast<int>(-21),
-					1, "Checking random access"
-				);
-				t->assertEqual(
-					list.at(16), static_cast<int>(18),
-					1, "Checking random access"
-				);
+				t->log("Testing preset palindrome type: " + palindrome_type);
 				
-				//	Size
-				t->assertEqual(
-					list.size(), static_cast<size_t>(20),
-					1, "Checking size"
-				);
-				
-				//	Add a couple items at random access
-				list.insert_after(7, 119);
-				list.insert_after(13, 181);
-				t->assertEqual(
-					list.size(), static_cast<size_t>(22),
-					1, "Checking size after arbitrary insertions"
-				);
-				t->assertEqual(
-					list.at(8), static_cast<int>(119),
-					1, "Checking arbitrary insertion"
-				);
-				t->assertEqual(
-					list.at(14), static_cast<int>(181),
-					1, "Checking arbitrary insertion"
-				);
-				
-				//	Push back and push front
-				list.push_front(1011);
-				list.push_back(1012);
-				t->assertEqual(
-					list.size(), static_cast<size_t>(24),
-					1, "Checking size after push front/back"
-				);
-				t->assertEqual(
-					list.at(0), static_cast<int>(1011),
-					1, "Checking value after push front"
-				);
-				t->assertEqual(
-					list.at(list.size() - 1), static_cast<int>(1012),
-					1, "Checking value after push back"
-				);
-				
-				//	Check the front and back
-				t->assertEqual(
-					list.front(), static_cast<int>(1011),
-					1, "Checking value at front()"
-				);
-				t->assertEqual(
-					list.back(), static_cast<int>(1012),
-					1, "Checking value at back()"
-				);
-			}
-			
-		}, 1, "Basic add/remove tests"
-	);
-	
-	//
-	t->assertNoException(
-		[t]()
-		{
-			{
-				CPSC131::DoublyLinkedList::DoublyLinkedList<int> list;
-				list.assign(6, 999);
-				bool b = true;
-				for ( size_t i = 0; i < 6; i++ ) {
-					if ( list.at(i) != 999 ) {
-						b = false;
+				for ( auto s : palindromes[palindrome_type] ) {
+					
+					string temp = s;
+					temp.insert(r.get(0, temp.size() - 1), ruiner);
+					
+					t->log("Testing \"" + s + "\" and \"" + temp + "\"");
+					
+					if ( d.isPalindrome(s) != true ) {
+						t->assertTrue(d.isPalindrome(s), 1, "Detect " + palindrome_type + " palindrome: " + s);
+					}
+					if ( d.isPalindrome(temp) != false) {
+						t->assertFalse(d.isPalindrome(temp), 1, "Detect " + palindrome_type + " non-palindrome: " + temp + " (ruined)");
 					}
 				}
-				if ( list.size() != 6 ) {
-					b = false;
+			}
+			t->assertTrue(true, 5, "Successfully detected preset palindromes");
+			
+			//	Generate nonsense palindromes
+			for ( size_t i = 0; i < 100; i++ ) {
+				
+				//
+				string s1, s2;
+				int len = r.get(5, 25);
+				for ( int j = 0; j < len; j++ ) {
+					s1 += r.getChar(true);
 				}
-				t->assertTrue(b, 1, "Checking assign() method");
-			}
-			
-		}, 1, "Checking assign()"
-	);
-}
-
-//
-void testListAssignment(Tests& tests)
-{
-	//
-	auto t = tests.createTest("List assignment");
-	
-	//
-	t->setFixedPointsPossible(7);
-	t->setNormalizedPointsPossibleTarget(10);
-	
-	//
-	t->assertNoException(
-		[t]()
-		{
-			//
-			{
-				//
-				CPSC131::DoublyLinkedList::DoublyLinkedList<int> list;
-				list.push_front(19);
-				list.push_front(12);
-				list.push_front(-129878);
-				list.push_front(228764364);
-				list.push_front(119991111);
-				list.push_front(0);
-				list.push_front(1900000000);
 				
-				//
-				auto list2 = list;
-				t->assertTrue(checkIntegerListsEqual(list, list2), 1, "Assignment operator should work");
+				string mirror = s1;
+				std::reverse(mirror.begin(), mirror.end());
 				
-				//
-				CPSC131::DoublyLinkedList::DoublyLinkedList<int> list3(list);
-				t->assertTrue(checkIntegerListsEqual(list, list3), 1, "Copy constructor should work");
+				s2 = s1 + "vd" + mirror;
+				s1 = s1 + mirror;
 				
-				//	Check comparison
-				t->assertTrue(list == list2 && list2.size() > 0, 1, "Comparison operator check");
-				t->assertFalse(list != list2 || list2.size() == 0, 1, "Inequality operator check");
-				
-				//	Make list3 different, then recheck comparisons
-				list3.push_back(0);
-				t->assertFalse(list == list3 || list3.size() == 0, 1, "Comparison operator check");
-				t->assertTrue(list != list3 && list3.size() > 0, 1, "Inequality operator check");
-			}
-			
-		}, 1, "List assignment tests"
-	);
-}
-
-//
-void testListAccordion(Tests& tests)
-{
-	//
-	auto t = tests.createTest("Accordion");
-	
-	//
-	t->setFixedPointsPossible(6);
-	t->setNormalizedPointsPossibleTarget(10);
-	
-	//
-	t->assertNoException(
-		[t]()
-		{
-			//
-			{
-				//
-				CPSC131::DoublyLinkedList::DoublyLinkedList<int> list;
-				for ( int i = 0; i < 100; i++ ) {
-					list.push_front(i * 2);
-					list.push_back(i * 2);
+				if ( d.isPalindrome(s1) != true ) {
+					t->assertTrue(d.isPalindrome(s1), 0, "Detect random palindrome: " + s1);
 				}
-				t->assertEqual(list.size(), 200UL, 1, "Check size after a bunch of push_front and push_back");
-				
-				for ( int i = 0; i < 50; i++ ) {
-					list.pop_front();
-					list.pop_back();
+				if ( d.isPalindrome(s2) != false ) {
+					t->assertFalse(d.isPalindrome(s2), 0, "Detect random non-palindrome: " + s2);
 				}
-				t->assertEqual(list.size(), 100UL, 1, "Check size after some pop_front and pop_back");
-				t->assertFalse(list.empty(), 1, "Check empty() after some pop_front and pop_back");
-				
-				for ( int i = 0; i < 50; i++ ) {
-					list.pop_front();
-					list.pop_back();
-				}
-				t->assertEqual(list.size(), 0UL, 1, "Check size after depleting with pop_front and pop_back");
-				t->assertTrue(list.empty(), 1, "Check empty() after depleting with pop_front and pop_back");
 			}
+			t->assertTrue(true, 5, "Detect random palindromes");
 			
-		}, 1, "Accordion tests"
+		}, 1, "Checking the palindrome detector"
 	);
 }
 
-//
-void testListReverse(Tests& tests)
-{
-	//
-	auto t = tests.createTest("List reverse");
-	
-	//
-	t->setFixedPointsPossible(3);
-	t->setNormalizedPointsPossibleTarget(5);
-	
-	//
-	t->assertNoException(
-		[t]()
-		{
-			{
-				auto list1 = makeList();
-				auto list2 = list1;
-				
-				list2.clear();
-				list2.push_back(27);
-				list2.push_back(24);
-				list2.push_back(21);
-				list2.push_back(18);
-				list2.push_back(15);
-				list2.push_back(12);
-				list2.push_back(9);
-				list2.push_back(6);
-				list2.push_back(3);
-				list2.push_back(0);
-				list2.push_back(-3);
-				list2.push_back(-6);
-				list2.push_back(-9);
-				list2.push_back(-12);
-				list2.push_back(-15);
-				list2.push_back(-18);
-				list2.push_back(-21);
-				list2.push_back(-24);
-				list2.push_back(-27);
-				list2.push_back(-30);
-				
-				list1.reverse();
-				
-				t->assertTrue(
-					list1.size() == 20 && list1 == list2, 2, "Correctly reverse a list"
-				);
-			}
-		}, 1, "Reverse tests"
-	);
-}
-
-//
-void testIterators(Tests& tests)
-{
-	//
-	auto t = tests.createTest("Iterators");
-	
-	//
-	t->setFixedPointsPossible(10);
-	t->setNormalizedPointsPossibleTarget(10);
-	
-	//
-	t->assertNoException(
-		[t]()
-		{
-			{
-				//
-				auto list = makeList();
-				auto itr = list.begin();
-				
-				//
-				itr++;
-				t->assertEqual(
-					(*itr), static_cast<int>(-27),
-					1, "Postfix iterator increment"
-				);
-				++itr;
-				t->assertEqual(
-					(*itr), static_cast<int>(-24),
-					1, "Prefix iterator increment"
-				);
-				
-				//
-				itr += 10;
-				t->assertEqual(
-					(*itr), static_cast<int>(6),
-					1, "Iterator addition assignment"
-				);
-				
-				//
-				itr -= 4;
-				t->assertEqual(
-					(*itr), static_cast<int>(-6),
-					1, "Iterator subtraction assignment"
-				);
-				
-				//
-				itr--;
-				t->assertEqual(
-					(*itr), static_cast<int>(-9),
-					1, "Postfix iterator decrement"
-				);
-				--itr;
-				t->assertEqual(
-					(*itr), static_cast<int>(-12),
-					1, "Prefix iterator decrement"
-				);
-				
-				//	Assign and compare iterators
-				auto itr2 = itr;
-				t->assertTrue(
-					itr == itr2,
-					1, "Iterator assignment and comparison operators"
-				);
-				itr2++;
-				t->assertTrue(
-					itr != itr2,
-					1, "Iterators should not be equal after has is advanced"
-				);
-				
-				//	Try to get the cursor out-of-bounds
-				itr += 5000;
-				t->assertTrue(
-					itr == list.end(),
-					1, "Depleted iterator should become end()"
-				);
-			}
-			
-		}, 1, "Iterator tests"
-	);
-}
-
-//
-void testStockSales(Tests& tests)
-{
-	//
-	auto t = tests.createTest("Stock/Sales Manip");
-	
-	//
-	t->setFixedPointsPossible(13);
-	t->setNormalizedPointsPossibleTarget(10);
-	
-	//
-	t->assertNoException(
-		[t]()
-		{
-			//
-			{
-				//
-				auto store = makeBookStore();
-				
-				//	Check initial balance
-				//	(50×900)+(49×550)+(48×1200)+(47×2000)+(46×100) == -228150
-				t->assertEqual(
-					store.getAccountBalance(), static_cast<int>(-228150),
-					1, "Correct balance after adding initial books"
-				);
-				
-				//	Add additional book to check balance
-				//	-228150 - (999*3) == -231147
-				store.purchaseInventory(Book("Ninja Mind Control", "Ashida Kim", "1435769244", 999, 3));
-				t->assertEqual(
-					store.getAccountBalance(), static_cast<int>(-231147),
-					1, "Correct balance after adding new book"
-				);
-				
-				//	Check stock on the new book
-				t->assertEqual(
-					store.getBookStockAvailable("1435769244"), static_cast<size_t>(3),
-					1, "Correct stock on newly added book"
-				);
-				
-				//	Add more of an existing book to check balance
-				//	-231147 - (1000*2) == -233147
-				store.purchaseInventory(Book("Bla", "Bla", "1435769244", 1000, 2));
-				t->assertEqual(
-					store.getAccountBalance(), static_cast<int>(-233147),
-					1, "Correct balance after adding more of an existing book at a different price"
-				);
-				t->assertEqual(
-					store.getBookStockAvailable("1435769244"), static_cast<size_t>(5),
-					1, "Correct stock after adding 2 more"
-				);
-				
-				//	Increase funds after customer purchases one book
-				//store.printInventory();
-				store.sellToCustomer("1435769244", 2000, 3);
-				t->assertEqual(
-					store.getAccountBalance(), static_cast<int>(-227147),
-					1, "Correct balance after selling some books"
-				);
-			}
-			
-			{
-				//	Starts with balance -228150
-				auto store = makeBookStore();
-				
-				//	Adjust balance
-				store.adjustAccountBalance(12983);
-				t->assertEqual(
-					store.getAccountBalance(), static_cast<int>(-215167),
-					1, "Adjust account balance"
-				);
-				store.adjustAccountBalance(-228);
-				t->assertEqual(
-					store.getAccountBalance(), static_cast<int>(-215395),
-					1, "Adjust account balance"
-				);
-				
-				//	Check inventory
-				t->assertTrue(
-					store.bookExists("0533112923"), 1, "Calling bookExists() on existing book"
-				);
-				t->assertFalse(
-					store.bookExists("053zzz3112923"), 1, "Calling bookExists() on non-existing book"
-				);
-			}
-			
-		}, 2, "Account balance tests"
-	);
-	
-	//	Separate test to check overselling so we don't run into the "dead local reference".
-	//	that happens when trying to nest tests too deeply.
-	//	We should see an exception if we try to oversell a book.
-	t->assertException(
-		[t]()
-		{
-			//
-			auto store = makeBookStore();
-			
-			//	Purchase some inventory to avoid default values
-			store.purchaseInventory(Book("Ninja Mind Control", "Ashida Kim", "1435769244", 999, 3));
-			store.purchaseInventory(Book("Bla", "Bla", "1435769244", 1000, 2));
-			
-			//store.printInventory();
-			store.sellToCustomer("1435769244", 2000, 6);
-		}, 1, "Should see an exception if we try to oversell a book."
-	);
-	
-}
 
 //
 void testMemoryLeaks(Tests& tests)
@@ -665,7 +571,7 @@ void testMemoryLeaks(Tests& tests)
 	
 	//
 	t->setFixedPointsPossible(11);
-	t->setNormalizedPointsPossibleTarget(5);
+	t->setNormalizedPointsPossibleTarget(2);
 	
 	//
 	t->assertNoException(
@@ -683,13 +589,29 @@ void testMemoryLeaks(Tests& tests)
 			//
 			if ( !leakCheckResult ) {
 				t->log("Leak Check Result :: STDOUT\n" + stdout);
-				t->log("Leak Check Result :: STDERR\n" + stdout);
+				t->log("Leak Check Result :: STDERR\n" + stderr);
 			}
 			t->assertTrue(leakCheckResult, 10, "Checking for memory leaks: " + message);
 			
 		}, 1, "Memory leaks"
 	);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

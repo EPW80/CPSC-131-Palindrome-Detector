@@ -5,7 +5,9 @@
 
 
 //
-#include "DoublyLinkedList.hpp"
+#include "MyStack.hpp"
+#include "MyQueue.hpp"
+#include "MyDetector.hpp"
 
 
 //
@@ -17,39 +19,44 @@ using
 void leaker()
 {
 	//
-	CPSC131::DoublyLinkedList::DoublyLinkedList<int> dll;
+	CPSC131::MyStack<int> stack;
+	CPSC131::MyQueue<int> q;
+	CPSC131::PalindromeDetector::MyDetector detector;
 	
 	//
 	for ( int i = 0; i < 100; i++ ) {
-		dll.push_front(i * 2);
-		dll.push_back(i * 2);
+		stack.push(i * 2);
+		q.enqueue(i * 2);
 	}
-	for ( int i = 0; i < 100; i++ ) {
-		dll.pop_front();
-		dll.pop_back();
+	for ( int i = 0; i < 50; i++ ) {
+		stack.top();
+		stack.pop();
+		q.front();
+		q.dequeue();
 	}
+	stack.clear();
+	q.clear();
 	
-	dll.push_front(5);
-	dll.erase(dll.begin());
-	
-	dll.assign(276, 100);
+	//
+	detector.isPalindrome("Uhm hai");
+	detector.isPalindrome("radar");
+	detector.isPalindrome("");
 	
 	//
 	{
-		cout << "Enter assignment operator overload" << endl;
-		CPSC131::DoublyLinkedList::DoublyLinkedList<int> t1 = dll;
-		CPSC131::DoublyLinkedList::DoublyLinkedList<int> t2(dll);
+		CPSC131::MyStack<int> st1 = stack;
+		CPSC131::MyStack<int> st2(stack);
+		
+		CPSC131::MyQueue<int> q1 = q;
+		CPSC131::MyQueue<int> q2(q);
 	}
-	
-	//
-	dll.assign(100, 1000);
 }
 
 //
 int main()
 {
 	//
-	cout << "Hello, my name is Quiche Hollandaise!" << endl;
+	cout << "Hello, my name is Gibsen Montgomery Gibsen!" << endl;
 	
 	//
 	leaker();

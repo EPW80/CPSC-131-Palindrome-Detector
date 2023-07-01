@@ -63,6 +63,7 @@ namespace PuhPTests
 						"valgrind",
 						"--tool=memcheck",
 						"--leak-check=full",
+						"--leak-resolution=high",
 						"--show-leak-kinds=definite",
 						//"--track-origins=yes",	This option seems to make leak checks fail sometimes (?)
 						"--error-exitcode=111",
@@ -70,10 +71,12 @@ namespace PuhPTests
 						"./" + exe_name
 					}
 				);
+				
+				stdout = result.stdout;
+				stderr = result.stderr;
+				
 				if ( result.code != 0 ) {
 					
-					stdout = result.stdout;
-					stderr = result.stderr;
 					message = "Memory leaks were detected";
 					
 					return false;

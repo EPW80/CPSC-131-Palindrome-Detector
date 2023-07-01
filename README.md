@@ -1,40 +1,31 @@
-# Book Store (DLL Adapter)
+# Project 3 - Palindrome Detector
 
-This project consisted of the implementation of two primary components:
-A custom Doubly Linked List class, DoublyLinkedList.
-An adapter class, BookStore, functions as a wrapper that offers an interface to a bookstore simulation. This class uses the DoublyLinkedList class under the hood.
-This project aimed to provide a real-world application of data structures by creating a bookstore simulation and keeping track of its inventory through a doubly linked list. The BookStore class allows users to interact with the bookstore and perform operations like adding new books to inventory, selling books to customers, and viewing a list of all books in the inventory.
+Welcome to Project 3 - Palindrome Detector! This project invites you to explore and practice the Adapter/Wrapper pattern, work with different data structures like Stack and Queue, and put them to use in creating a Palindrome Detector.
 
-## Structure
+## Overview
 
-The project involved coding in several files:
+A palindrome is a word, phrase, number, or other sequences of characters that reads the same forward and backward (ignoring spaces, punctuation, and capitalization). This project involves:
 
-- DoublyLinkedList.hpp: The implementation of the custom Doubly Linked List class.
-- BookStore.hpp (optional): The header file for the BookStore class.
-- BookStore.cpp: The implementation of the BookStore class.
-- Please note that Book.hpp and Book.cpp were part of the provided files and did not need to be modified. The main.cpp file serves as an interface for interaction with the bookstore.
+- Implementing the Adapter/Wrapper design pattern.
 
-The project's design intended that all methods in the DoublyLinkedList class were inline, whereas the Book and BookStore classes use two separate source files for declaration and implementation.
+- Creating a custom Stack class utilizing a singly linked-list (std::forward_list) as the underlying data structure.
 
-## Execution and Testing
+- Creating a custom Queue class employing a doubly linked-list (std::list) as the underlying data structure.
 
-The project used a Makefile for GNU Make to control execution and testing. The available commands were:
+- Combining the Stack and Queue classes to develop a palindrome detector.
 
-```
-make help: Show a help menu with available commands.
-make test: Provides a quick preview/estimate of the grade.
-make run: Executes the program defined by main.cpp.
-make debug-test: Runs tests in debug mode with gdb.
-```
+## Source Files
 
-## Demo
+- MyDetector.hpp
 
-![](./demo.gif)
+- MyDetector.cpp
 
-## Built
+- MyQueue.hpp
 
-- C++
+- MyStack.hpp
 
-## Contribution
+- sandbox.cpp (optional, for custom debugging/development)
+
+# Contributor
 
 Erik Williams

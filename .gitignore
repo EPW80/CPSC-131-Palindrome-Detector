@@ -1,14 +1,11 @@
 
 *.o
-*.gch
-main
-main-tests
-leak-checker
-results.json
-
-
 *~
 
+main
+main-sandbox
+main-tests
+leak-checker
+
+results.json
 .vscode
-
-

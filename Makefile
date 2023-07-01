@@ -12,18 +12,22 @@ LINKFLAGS := -Wall -Werror -pedantic -g -std=c++17
 
 
 #
-DEPS_PUHP := $(wildcard puhp-tests/*)
-
-
-# Binary names
 BIN_NAME := main
 BIN := ./$(BIN_NAME)
+#
+BIN_SANDBOX_NAME := main-sandbox
+BIN_SANDBOX := ./$(BIN_SANDBOX_NAME)
 #
 BIN_TESTS_NAME := main-tests
 BIN_TESTS := ./$(BIN_TESTS_NAME)
 #
 BIN_LEAK_CHECKER_NAME := leak-checker
 BIN_LEAK_CHECKER = ./$(BIN_LEAK_CHECKER_NAME)
+
+
+#
+DEPS_PUHP := $(wildcard puhp-tests/*)
+
 
 #
 default:	help
@@ -34,18 +38,22 @@ help:
 	@echo "***** Makefile Menu *****"
 	@echo
 	@echo "make build         ==> Build source files"
-	@echo "make run           ==> Run the book store"
-	@echo "make run-sim       ==> Run the book store with some simulated data"
-	@echo "make debug         ==> Debug the book store with gdb"
 	@echo
-	@echo "make test          ==> Run tests against your book store"
-	@echo "make debug-test    ==> Debug the tests run against your book store"
+	@echo "make run           ==> Run the palindrome detector"
+	@echo "make run-sim       ==> Run the palindrome detector with some simulated data"
+	@echo "make debug         ==> Debug the palindrome detector with gdb"
+	@echo
+	@echo "make sandbox       ==> Run the extra sandbox program"
+	@echo "make debug-sandbox ==> Debug the extra sandbox program with gdb"
+	@echo
+	@echo "make test          ==> Run tests against your palindrome detector"
+	@echo "make debug-test    ==> Debug the tests run against your palindrome detector"
 	@echo
 	@echo "make clean         ==> Clean temporary build files"
 
 
 #
-build:	$(BIN) $(BIN_TESTS)
+build:	$(BIN) $(BIN_SANDBOX) $(BIN_TESTS)
 .PHONY: build
 
 
@@ -57,21 +65,20 @@ run:	$(BIN)
 
 #
 run-sim:	$(BIN)
-	@echo -ne " \
-		\n1\n12345\nBook1\nAuthor1\n200\n10\n `# Add Book 1` \
-		\n1\n12346\nBook2\nAuthor2\n100\n17\n `# Add Book 2` \
-		\n1\n12347\nBook3\nAuthor3\n275\n11\n `# Add Book 3` \
-		\n2\n `# Print inventory` \
-		\n1\n12345\n175\n1\n `# Add another of Book 1 (total 11)` \
-		\n2\n `# Print inventory again` \
-		\n3\n12347\n2000\n7 `# Customer purchases some copies of Book 3` \
-		\n2\n `# Print inventory again` \
-		\n3\n12347\n2000\n7 `# Customer tries to purchase too many copies of Book 3 (should fail)` \
-		\n3\n12347\n2000\n4 `# Customer purchases exactly as many copies as are left` \
-		\n2\n `# Print inventory again` \
-		\nq\n `# Quit`" \
-		| $(BIN) `# Pipe to the main program`
+	@echo "radar\nstoppots\noh dear\nq\n" | $(BIN) `# Pipe to the main program`
 .PHONY: run-sim
+
+
+#
+sandbox:	$(BIN_SANDBOX)
+	$(BIN_SANDBOX)
+.PHONY: sandbox
+
+
+#
+debug-sandbox:	$(BIN_SANDBOX)
+	gdb $(BIN_SANDBOX) -ex run
+.PHONY: debug-sandbox
 
 
 #
@@ -97,53 +104,57 @@ debug-test:	$(BIN_TESTS) $(BIN_LEAK_CHECKER)
 
 
 #
-$(BIN):	main.o BookStore.o Book.o
+$(BIN):	main.o MyDetector.o
 	$(CC) $(LINKFLAGS) $^ -o $@
 
 
 #
-$(BIN_TESTS):	CPP_Tests.o BookStore.o Book.o
+$(BIN_SANDBOX):	sandbox.o MyDetector.o
+	$(CC) $(LINKFLAGS) $^ -o $@
+
+
+#
+$(BIN_TESTS):	CPP_Tests.o MyDetector.o
 	$(CC) $(LINKFLAGS) $^ -o $@
 
 
 # Link the leak checker binary
-$(BIN_LEAK_CHECKER):	leak_checker.o
-	$(call say,Building: "$@")
+$(BIN_LEAK_CHECKER):	leak_checker.o MyDetector.o
 	$(CC) $(LINKFLAGS) $^ -o "$@"
 
 
 #
-main.o:	main.cpp DoublyLinkedList.hpp BookStore.hpp Book.hpp DoublyLinkedList.hpp
+main.o:	main.cpp MyDetector.hpp MyQueue.hpp MyStack.hpp
 	$(CC) $(CFLAGS) $< -o $@
 
 
 #
-CPP_Tests.o:	CPP_Tests.cpp DoublyLinkedList.hpp BookStore.hpp Book.hpp DoublyLinkedList.hpp $(DEPS_PUHP)
+sandbox.o:	sandbox.cpp MyDetector.hpp MyQueue.hpp MyStack.hpp
 	$(CC) $(CFLAGS) $< -o $@
 
 
 #
-BookStore.o:	BookStore.cpp BookStore.hpp Book.hpp DoublyLinkedList.hpp
+CPP_Tests.o:	CPP_Tests.cpp MyDetector.hpp MyQueue.hpp MyStack.hpp $(DEPS_PUHP)
 	$(CC) $(CFLAGS) $< -o $@
 
 
 #
-Book.o:			Book.cpp Book.hpp
+MyDetector.o:	MyDetector.cpp MyDetector.hpp MyQueue.hpp MyStack.hpp
 	$(CC) $(CFLAGS) $< -o $@
 
 
 #
-leak_checker.o:	leak_checker.cpp DoublyLinkedList.hpp
+leak_checker.o:	leak_checker.cpp MyDetector.hpp MyQueue.hpp MyStack.hpp
 	$(CC) $(CFLAGS) "$<" -o "$@"
 
 
 #
 clean:
 	-rm *.o
-	-rm *.gch
 	-rm $(BIN)
 	-rm $(BIN_TESTS)
-	-rm $(BIN_LEAK_CHECKER)
+	-rm $(BIN_SANDBOX)
+	-rm $(BIN_LEAK_CHECKER_NAME)
 	-rm results.json
 .PHONY: clean
 
